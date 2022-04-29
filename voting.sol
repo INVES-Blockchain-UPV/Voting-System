@@ -1,71 +1,80 @@
-pragma solidity ^0.4.0;
+pragma solidity ^0.8.0;
 
 contract Election{
     
     address owner;
 
-    struct Candidato {
+    struct Proposal {
 		uint id;
-		string nombre;
-		uint votos;
+        string name;
+        string description;
+		string[] choices; //Posibles cosas a las que votar
+        uint numeroDeOpciones; 
 	}
 	
-	uint private numeroCandidatos;
-	
+    mapping (uint => mapping(uint256 => uint64)) votes; //Mapa para registrar votos (indice choices => Nº de votos) || Ejemplo: ( (Chocolate => 3), (Vainilla => 0) )
+    mapping (uint => mapping(address => bool)) voted;
+
     modifier onlyOwner(){
-        require(msg.sender == owner, 'no autorizado');
+        require(msg.sender == owner, 'No autorizado');
         _;
     }
-	mapping (address => bool) private yaVoto;
-    mapping (uint => Candidato) private candidatos;
-    mapping (address => bool) private direccionesValidas;
+
+    modifier onlyWhitelist(){
+        require(whiteList[msg.sender], 'No autorizado');
+        _;
+    }
+    
+    uint64 votationDelay;
+    uint64 numProposals;
+	mapping (uint256 => bool) private executed;
+    mapping (uint256 => uint256) private dates; 
+    mapping (uint256 => Proposal) private proposals;
+    mapping (address => bool) private whiteList;
+    
     
     //Candidato[] public candidatos
-
-    event Votacion(address author, string candidato);
+    //MODIFICAR:
     
-    function agregarCandidato (uint id, string nombre) private {
-        candidatos[id]=Candidato(id,nombre,0);
-		numeroCandidatos++;
-    }
-     
-    function agregarDirecciones(address user) public onlyOwner {
-        direccionesValidas[user] = true;
-        /* direccionesValidas[0x14723a09acff6d2a60dcdf7aa4aff308fddc160c] = true;
-        direccionesValidas[0x4b0897b0513fdc7c541b6d9d7e929c4e5364d2db] = true; */
-    }
-    
-    function quitarDirecciones(address user) public onlyOwner {
-        direccionesValidas[user] = false;
-        /* direccionesValidas[0x14723a09acff6d2a60dcdf7aa4aff308fddc160c] = true;
-        direccionesValidas[0x4b0897b0513fdc7c541b6d9d7e929c4e5364d2db] = true; */
-    }
-  
-    //Solo se llama una vez
     constructor() public {
         owner = msg.sender;
-        agregarCandidato(1, "Juan");
-        agregarCandidato(2, "Maria");
-        agregarCandidato(3, "Jorge");
-        //agregarDirecciones();
+        votationDelay = 3600;
     }
     
-    function nombreDeCandidato(uint candidatoID) public view returns (string) {
-        return candidatos[candidatoID].nombre;
+    function agregarProposal (string memory _name, string memory _description, string[] memory _choices) private onlyWhitelist{
+        proposals[numProposals]=Proposal(numProposals, _name, _description, _choices, _choices.length);
+        dates[numProposals] = block.timestamp + votationDelay;
+		numProposals++;
+    }
+     
+    function agregarDirecciones(address _user) public onlyOwner {
+        whiteList[_user] = true;
     }
     
-    function totalVotos(uint candidatoID) public view returns (uint) {
-        return candidatos[candidatoID].votos;
+    function quitarDirecciones(address _user) public onlyOwner {
+        whiteList[_user] = false;
+    }
+
+    //Solo se llama una vez
+    
+    function nombreDeProposal(uint _numProposals) public onlyWhitelist view returns (string memory) {
+        return proposals[_numProposals].name;
     }
     
-    function  votar(uint candidatoID) public {
+    function choicesDeProposal(uint _numProposals) public onlyWhitelist view returns (string[] memory) {
+        return proposals[_numProposals].choices;
+    }
+    
+    function totalVotos(uint _numProposals, uint _choice) public onlyWhitelist view returns (uint64) {
+        return votes[_numProposals][_choice];
+    }
+    
+    function  votar(uint _numProposals, uint _choice) public onlyWhitelist{
         
-        require(!yaVoto[msg.sender]);
-        require(direccionesValidas[msg.sender]);
-        require(candidatoID >= 1 && candidatoID <= 3);
-        
-        yaVoto[msg.sender] = true;
-        candidatos[candidatoID].votos++;
-        emit Votacion(msg.sender, candidatos[candidatoID].nombre);
+        require(!voted[_numProposals][msg.sender]);
+        require(_choice >= 1 && _choice <= proposals[_numProposals].choices.length);
+        require(dates[_numProposals] > block.timestamp);
+        voted[_numProposals][msg.sender] = true;
+        votes[_numProposals][_choice]++;
     }
 }
