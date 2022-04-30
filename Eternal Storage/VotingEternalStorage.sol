@@ -42,7 +42,7 @@ contract EternalStorage{
     //Solo se llama una vez
     constructor() {
         owner = msg.sender;
-        uIntStorage[keccak256(abi.encodePacked("delay"))] = 3600;
+        uIntStorage[keccak256(abi.encodePacked("delay"))] = 1;
     }
     
     function upgradeVersion(address _newVersion) public onlyOwner{
@@ -129,7 +129,7 @@ contract Votation {
     
 
     function agregarProposal (string memory _name, string memory _description, string[] memory _choices) public onlyWhitelist{
-        
+        eternalStorage.addProposal(_name, _description, _choices);
     }
 
     function getProposal(uint _numProposals) public onlyWhitelist view returns (string memory, string memory) {
@@ -146,8 +146,8 @@ contract Votation {
     
     function  votar(uint _numProposals, uint _choice) public onlyWhitelist{
         require(!eternalStorage.getUserHasVoted(_numProposals));
-        require(_choice >= 1 && _choice <= eternalStorage.getChoicesNumber(_numProposals));
-        require(eternalStorage.getDate(_numProposals) > block.timestamp);
+        require(_choice >= 0 && _choice < eternalStorage.getChoicesNumber(_numProposals));
+        require(eternalStorage.getDate(_numProposals) < block.timestamp);
         eternalStorage.setUserHasVoted(_numProposals);
         eternalStorage.addVote(_numProposals, _choice);
     }
