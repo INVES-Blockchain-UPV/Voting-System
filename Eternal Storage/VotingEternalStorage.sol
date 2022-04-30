@@ -97,6 +97,10 @@ contract EternalStorage{
     function setExecuted(uint _numProposals, bool value) public onlyLogic {
         executed[_numProposals] = value;
     }
+
+    function getExecuted(uint _numProposals) public onlyLogic view returns (bool){
+        return executed[_numProposals];
+    }
 }
 
 contract Votation {
